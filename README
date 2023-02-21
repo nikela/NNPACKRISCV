@@ -4,6 +4,7 @@ Download:
     git clone https://github.com/soniab/NNPACKRISCV.git
 
 Building:
-    use source compilation.sh to make the static compilation for the Winograd kernels from NNPACK. Change the path of the compiler in the compilation.sh file if necessary and run the following command. 
+    use source compilation.sh to make the static compilation for the Winograd kernels from NNPACK. 
+    Change the path of the compiler in the compilation.sh file if necessary and run the following command. 
         'source compilation.sh'
 
