@@ -108,63 +108,6 @@ struct hardware_info nnp_hwinfo = {};
 
 int subsampling;
 
-void nnp_s4gemm_upto_3x3__neon1(
-    uint32_t mr, uint32_t nr,
-    size_t k, size_t update,
-    const float a[restrict static 1],
-    const float b[restrict static 1],
-    float c[restrict static 1],
-    size_t row_stride_c)
-{
-        int simd_width = 4;
-        // printf("mr = %d\n", mr);
-        int vl = 32;
-        int simd_width1 = __builtin_epi_vsetvlmax(__epi_e32, __epi_m1);
-        int rem = __builtin_epi_vsetvlmax(__epi_e32, __epi_m1) / 4; //__builtin_epi_vsetvlmax(__epi_e32, __epi_m1);
-        int index1_host[simd_width1];
-        int inc = 0;
-        int four = 4;
-        for (int i = 0; i < rem; i++)
-        {
-                for (int ind = 0; ind < 4; ind++)
-                {
-                        index1_host[inc] = ind;
-                        inc++;
-                }
-        }
-        for (int i1 = 0; i1 < vl;)
-        {
-                unsigned long gvl = __builtin_epi_vsetvl(((long)vl - (long)i1), __epi_e32, __epi_m1);
-                const float *b0_ptr = b + i1;
-                const float *a1_ptr = a + 0;
-                const size_t b_increment = nr * simd_width;
-                __epi_2xf32 acc;
-                for (int loop_idx = 0; loop_idx < mr; loop_idx++)
-                {
-                        acc = __builtin_epi_vfmv_v_f_2xf32(0.0f, gvl);
-                        float *restrict crow = c;
-                        for (int j = 0; j < k; j++)
-                        {
-                                const __epi_2xi32 FOUR = __builtin_epi_vmv_v_x_2xi32(four, gvl);
-                                __epi_2xi32 index1 = __builtin_epi_vload_2xi32(&index1_host[0], gvl);
-                                __epi_2xi32 index11 = __builtin_epi_vmul_2xi32(index1, FOUR, gvl);
-                                const __epi_2xf32 b0 = __builtin_epi_vload_2xf32(b0_ptr, gvl);
-                                b0_ptr += b_increment;
-                                __epi_2xf32 a;
-                                a = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
-                                acc = __builtin_epi_vfmacc_2xf32(acc, a, b0, gvl);
-                                a1_ptr += 4;
-                        }
-                        if (update == 0)
-                                __builtin_epi_vstore_2xf32(crow + i1, acc, gvl);
-                        else
-                                __builtin_epi_vstore_2xf32(crow + i1, __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(crow + i1, gvl), acc, gvl), gvl);
-                        crow = crow + row_stride_c;
-                }
-                i1 += gvl;
-        }
-}
-
 void nnp_s4gemm_upto_3x3__neon(
     uint32_t mr, uint32_t nr,
     size_t k, size_t update,
@@ -174,7 +117,6 @@ void nnp_s4gemm_upto_3x3__neon(
     size_t row_stride_c)
 {
         int simd_width = 4;
-        // printf("mr = %d\n", mr);
         int vl = nnp_hwinfo.sxgemm.mr * 4;
         int simd_width1 = __builtin_epi_vsetvlmax(__epi_e32, __epi_m1);
         int rem = __builtin_epi_vsetvlmax(__epi_e32, __epi_m1) / 4; //__builtin_epi_vsetvlmax(__epi_e32, __epi_m1);

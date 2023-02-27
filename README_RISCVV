@@ -4,8 +4,12 @@ Download:
     git clone https://github.com/soniab/NNPACKRISCV.git
 
 Building:
-    use source compilation.sh to make the static compilation for the Winograd kernels from NNPACK. 
+    convolutional_inference.c contains the kernels required for the vectorized Winograd impelmentations for RISC-V Vector. 
     Change the path of the compiler in the Makefile if necessary and run the following command. 
         'make' 
-    
+   
+Building with EPI-0.7 for RISC-V Vector:
+    convolutional_inference0.7.c contains the kernels required for the vectorized Winograd impelmentations for RISC-V Vector which target version 0.7. 
+    Change the path of the compiler in the Makefile-0.7 file if necessary and run the following command. 
+        'make -f Makefile-0.7'
 

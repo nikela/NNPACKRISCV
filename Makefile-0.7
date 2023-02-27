@@ -1,0 +1,10 @@
+
+CC=~/llvm-EPI-0.7-development-toolchain-cross/bin/clang
+CFLAGS=--target=riscv64-unknown-linux-gnu  -mepi  -v -fno-vectorize -fno-slp-vectorize
+#compilation and create static library
+lib0.7.o:
+	${CC} ${CFLAGS} -c convolutional_inference0.7.c -o lib0.7.o 
+	ar rcs lib0.7.a lib0.7.o
+
+clean:
+	rm -rf lib0.7.o lib0.7.a
