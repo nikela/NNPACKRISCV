@@ -5,6 +5,7 @@ Download:
 
 Building:
     use source compilation.sh to make the static compilation for the Winograd kernels from NNPACK. 
-    Change the path of the compiler in the compilation.sh file if necessary and run the following command. 
-        'source compilation.sh'
+    Change the path of the compiler in the Makefile if necessary and run the following command. 
+        'make' 
+    
 
