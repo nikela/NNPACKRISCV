@@ -1,7 +1,7 @@
 Winograd is vectorized for RISC-V Vector and has been extracted from the NNPACK repository. 
 
 Download:
-    git clone https://github.com/soniab/NNPACKRISCV.git
+    git clone https://github.com/chalmers-hart/NNPACKRISCV.git
 
 Building:
     convolutional_inference.c contains the kernels required for the vectorized Winograd impelmentations for RISC-V Vector. 
