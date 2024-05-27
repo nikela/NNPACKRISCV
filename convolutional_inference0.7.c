@@ -1,9 +1,9 @@
-/**** if deadling with EPI-0.7 intrinsics then use this file instead of convolutional-inference.c***//
-
-
 #include <stdio.h>
 #include <pthread.h>
 #include "init.h"
+#include </home/soniar/gem5/plct-gem5/plct-gem5/include/gem5/m5ops.h>
+#include </home/soniar/gem5/plct-gem5/plct-gem5/include/gem5/asm/generic/m5ops.h>
+
 
 typedef void (*pthreadpool_task_2d_tile_2d_t)(void *, size_t, size_t, size_t, size_t);
 typedef void (*pthreadpool_task_2d_tile_2d_t1)(void *, size_t, size_t, size_t, size_t);
@@ -111,6 +111,7 @@ struct hardware_info nnp_hwinfo = {};
 
 int subsampling;
 
+
 void nnp_s4gemm_upto_3x3__neon(
     uint32_t mr, uint32_t nr,
     size_t k, size_t update,
@@ -126,14 +127,9 @@ void nnp_s4gemm_upto_3x3__neon(
         int index1_host[simd_width1];
         int inc = 0;
         int four = 4;
-        for (int i = 0; i < rem; i++)
-        {
-                for (int ind = 0; ind < 4; ind++)
-                {
-                        index1_host[inc] = ind;
-                        inc++;
-                }
-        }
+         float vin0123[500];
+
+
         switch (mr)
         {
         case 1:
@@ -141,6 +137,7 @@ void nnp_s4gemm_upto_3x3__neon(
                 for (int i1 = 0; i1 < vl;)
                 {
                         unsigned long gvl = __builtin_epi_vsetvl(((long)vl - (long)i1), __epi_e32, __epi_m1);
+                        int iteration = gvl/8;
                         __epi_2xf32 acc00 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc10 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc20 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
@@ -151,11 +148,11 @@ void nnp_s4gemm_upto_3x3__neon(
                         const size_t b_increment = nr * simd_width;
                         for (int j = 0; j < k; j++)
                         {
-
-                                const __epi_2xi32 FOUR = __builtin_epi_vbroadcast_2xi32(four, gvl);
-                                __epi_2xi32 index1 = __builtin_epi_vload_2xi32(&index1_host[0], gvl);
-                                __epi_2xi32 index11 = __builtin_epi_vmul_2xi32(index1, FOUR, gvl);
-                                const __epi_2xf32 a0 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a0 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration; it++)
+                                {
+                                        a0 = __builtin_epi_vslideup_2xf32(a0, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
 
                                 const __epi_2xf32 b0 = __builtin_epi_vload_2xf32(b0_ptr, gvl);
@@ -180,6 +177,7 @@ void nnp_s4gemm_upto_3x3__neon(
                 for (int i1 = 0; i1 < vl;)
                 {
                         unsigned long gvl = __builtin_epi_vsetvl(((long)vl - (long)i1), __epi_e32, __epi_m1);
+                        int iteration = gvl/8;
                         __epi_2xf32 acc00 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc10 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc20 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
@@ -191,12 +189,17 @@ void nnp_s4gemm_upto_3x3__neon(
                         for (int j = 0; j < k; j++)
                         {
 
-                                const __epi_2xi32 FOUR = __builtin_epi_vbroadcast_2xi32(four, gvl);
-                                __epi_2xi32 index1 = __builtin_epi_vload_2xi32(&index1_host[0], gvl);
-                                __epi_2xi32 index11 = __builtin_epi_vmul_2xi32(index1, FOUR, gvl);
-                                const __epi_2xf32 a0 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a0 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a0 = __builtin_epi_vslideup_2xf32(a0, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a1 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a1 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a1 = __builtin_epi_vslideup_2xf32(a1, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
 
                                 const __epi_2xf32 b0 = __builtin_epi_vload_2xf32(b0_ptr, gvl);
@@ -226,6 +229,7 @@ void nnp_s4gemm_upto_3x3__neon(
                 for (int i1 = 0; i1 < vl;)
                 {
                         unsigned long gvl = __builtin_epi_vsetvl(((long)vl - (long)i1), __epi_e32, __epi_m1);
+                        int iteration = gvl/8;
                         __epi_2xf32 acc00 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc10 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc20 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
@@ -237,16 +241,29 @@ void nnp_s4gemm_upto_3x3__neon(
                         for (int j = 0; j < k; j++)
                         {
 
-                                const __epi_2xi32 FOUR = __builtin_epi_vbroadcast_2xi32(four, gvl);
-                                __epi_2xi32 index1 = __builtin_epi_vload_2xi32(&index1_host[0], gvl);
-                                __epi_2xi32 index11 = __builtin_epi_vmul_2xi32(index1, FOUR, gvl);
-                                const __epi_2xf32 a0 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a0 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a0 = __builtin_epi_vslideup_2xf32(a0, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a1 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a1 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a1 = __builtin_epi_vslideup_2xf32(a1, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a2 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a2 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a2 = __builtin_epi_vslideup_2xf32(a2, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a3 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a3 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration; it++)
+                                {
+                                        a3 = __builtin_epi_vslideup_2xf32(a3, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
 
                                 const __epi_2xf32 b0 = __builtin_epi_vload_2xf32(b0_ptr, gvl);
@@ -284,6 +301,7 @@ void nnp_s4gemm_upto_3x3__neon(
                 for (int i1 = 0; i1 < vl;)
                 {
                         unsigned long gvl = __builtin_epi_vsetvl(((long)vl - (long)i1), __epi_e32, __epi_m1);
+                        int iteration = gvl/8;
                         __epi_2xf32 acc00 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc10 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc20 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
@@ -295,26 +313,59 @@ void nnp_s4gemm_upto_3x3__neon(
                         for (int j = 0; j < k; j++)
                         {
 
-                                const __epi_2xi32 FOUR = __builtin_epi_vbroadcast_2xi32(four, gvl);
-                                __epi_2xi32 index1 = __builtin_epi_vload_2xi32(&index1_host[0], gvl);
-                                __epi_2xi32 index11 = __builtin_epi_vmul_2xi32(index1, FOUR, gvl);
-                                const __epi_2xf32 a0 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a0 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a0 = __builtin_epi_vslideup_2xf32(a0, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a1 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a1 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a1 = __builtin_epi_vslideup_2xf32(a1, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a2 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a2 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration; it++)
+                                {
+                                        a2 = __builtin_epi_vslideup_2xf32(a2, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a3 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a3 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a3 = __builtin_epi_vslideup_2xf32(a3, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a4 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a4 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a4 = __builtin_epi_vslideup_2xf32(a4, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a5 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a5 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a5 = __builtin_epi_vslideup_2xf32(a5, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a6 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a6 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration; it++)
+                                {
+                                        a6 = __builtin_epi_vslideup_2xf32(a6, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a7 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a7 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a7 = __builtin_epi_vslideup_2xf32(a7, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a8 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                 __epi_2xf32 a8 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a8 = __builtin_epi_vslideup_2xf32(a8, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
 
                                 const __epi_2xf32 b0 = __builtin_epi_vload_2xf32(b0_ptr, gvl);
@@ -367,11 +418,12 @@ void nnp_s4gemm_upto_3x3__neon(
                 }
                 break;
         }
-                case 17:
+        case 17:
         {
                 for (int i1 = 0; i1 < vl;)
                 {
                         unsigned long gvl = __builtin_epi_vsetvl(((long)vl - (long)i1), __epi_e32, __epi_m1);
+                        int iteration = gvl/8;
                         __epi_2xf32 acc00 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc10 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc20 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
@@ -388,42 +440,107 @@ void nnp_s4gemm_upto_3x3__neon(
                         for (int j = 0; j < k; j++)
                         {
 
-                                const __epi_2xi32 FOUR = __builtin_epi_vbroadcast_2xi32(four, gvl);
-                                __epi_2xi32 index1 = __builtin_epi_vload_2xi32(&index1_host[0], gvl);
-                                __epi_2xi32 index11 = __builtin_epi_vmul_2xi32(index1, FOUR, gvl);
-                                const __epi_2xf32 a0 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a0 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a0 = __builtin_epi_vslideup_2xf32(a0, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a1 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a1 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a1 = __builtin_epi_vslideup_2xf32(a1, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a2 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a2 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a2 = __builtin_epi_vslideup_2xf32(a2, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a3 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a3 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a3 = __builtin_epi_vslideup_2xf32(a3, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a4 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a4 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a4 = __builtin_epi_vslideup_2xf32(a4, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a5 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a5 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration; it++)
+                                {
+                                        a5 = __builtin_epi_vslideup_2xf32(a5, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a6 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a6 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a6 = __builtin_epi_vslideup_2xf32(a6, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a7 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a7 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a7 = __builtin_epi_vslideup_2xf32(a7, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a8 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a8 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a8 = __builtin_epi_vslideup_2xf32(a8, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a9 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a9 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a9 = __builtin_epi_vslideup_2xf32(a9, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a10 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a10 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a10 = __builtin_epi_vslideup_2xf32(a10, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a11 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a11 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a11 = __builtin_epi_vslideup_2xf32(a11, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a12 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a12 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a12 = __builtin_epi_vslideup_2xf32(a12, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a13 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a13 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a13 = __builtin_epi_vslideup_2xf32(a13, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a14 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a14 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a14 = __builtin_epi_vslideup_2xf32(a14, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a15 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a15 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a15 = __builtin_epi_vslideup_2xf32(a15, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a16 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a16 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a16 = __builtin_epi_vslideup_2xf32(a16, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
 
                                 const __epi_2xf32 b0 = __builtin_epi_vload_2xf32(b0_ptr, gvl);
@@ -513,6 +630,7 @@ void nnp_s4gemm_upto_3x3__neon(
                 for (int i1 = 0; i1 < vl;)
                 {
                         unsigned long gvl = __builtin_epi_vsetvl(((long)vl - (long)i1), __epi_e32, __epi_m1);
+                        int iteration = gvl/8;
                         __epi_2xf32 acc00 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc10 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc20 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
@@ -529,58 +647,155 @@ void nnp_s4gemm_upto_3x3__neon(
                         for (int j = 0; j < k; j++)
                         {
 
-                                const __epi_2xi32 FOUR = __builtin_epi_vbroadcast_2xi32(four, gvl);
-                                __epi_2xi32 index1 = __builtin_epi_vload_2xi32(&index1_host[0], gvl);
-                                __epi_2xi32 index11 = __builtin_epi_vmul_2xi32(index1, FOUR, gvl);
-                                const __epi_2xf32 a0 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a0 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a0 = __builtin_epi_vslideup_2xf32(a0, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a1 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a1 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a1 = __builtin_epi_vslideup_2xf32(a1, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a2 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a2 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a2 = __builtin_epi_vslideup_2xf32(a2, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a3 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a3 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a3 = __builtin_epi_vslideup_2xf32(a3, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a4 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a4 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a4 = __builtin_epi_vslideup_2xf32(a4, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a5 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a5 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a5 = __builtin_epi_vslideup_2xf32(a5, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a6 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a6 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a6 = __builtin_epi_vslideup_2xf32(a6, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a7 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a7 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration; it++)
+                                {
+                                        a7 = __builtin_epi_vslideup_2xf32(a7, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a8 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a8 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a8 = __builtin_epi_vslideup_2xf32(a8, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a9 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a9 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a9 = __builtin_epi_vslideup_2xf32(a9, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a10 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a10 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration; it++)
+                                {
+                                        a10 = __builtin_epi_vslideup_2xf32(a10, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a11 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a11 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a11 = __builtin_epi_vslideup_2xf32(a11, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a12 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a12 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a12 = __builtin_epi_vslideup_2xf32(a12, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a13 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a13 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a13 = __builtin_epi_vslideup_2xf32(a13, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a14 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a14 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a14 = __builtin_epi_vslideup_2xf32(a14, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a15 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a15 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a15 = __builtin_epi_vslideup_2xf32(a15, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a16 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a16 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a16 = __builtin_epi_vslideup_2xf32(a16, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a17 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a17 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a17 = __builtin_epi_vslideup_2xf32(a17, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a18 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a18 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a18 = __builtin_epi_vslideup_2xf32(a18, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a19 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a19 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a19 = __builtin_epi_vslideup_2xf32(a19, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a20 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a20 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a20 = __builtin_epi_vslideup_2xf32(a20, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a21 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a21 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a21 = __builtin_epi_vslideup_2xf32(a21, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a22 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a22 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a22 = __builtin_epi_vslideup_2xf32(a22, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a23 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a23 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a23 = __builtin_epi_vslideup_2xf32(a23, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a24 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a24 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a24 = __builtin_epi_vslideup_2xf32(a24, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
 
                                 const __epi_2xf32 b0 = __builtin_epi_vload_2xf32(b0_ptr, gvl);
@@ -702,6 +917,7 @@ void nnp_s4gemm_upto_3x3__neon(
                 for (int i1 = 0; i1 < vl;)
                 {
                         unsigned long gvl = __builtin_epi_vsetvl(((long)vl - (long)i1), __epi_e32, __epi_m1);
+                        int iteration = gvl/8;
                         __epi_2xf32 acc00 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc10 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
                         __epi_2xf32 acc20 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
@@ -718,72 +934,197 @@ void nnp_s4gemm_upto_3x3__neon(
                         for (int j = 0; j < k; j++)
                         {
 
-                                const __epi_2xi32 FOUR = __builtin_epi_vbroadcast_2xi32(four, gvl);
-                                __epi_2xi32 index1 = __builtin_epi_vload_2xi32(&index1_host[0], gvl);
-                                __epi_2xi32 index11 = __builtin_epi_vmul_2xi32(index1, FOUR, gvl);
-                                const __epi_2xf32 a0 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a0 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a0 = __builtin_epi_vslideup_2xf32(a0, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a1 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a1 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a1 = __builtin_epi_vslideup_2xf32(a1, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a2 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a2 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a2 = __builtin_epi_vslideup_2xf32(a2, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a3 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a3 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a3 = __builtin_epi_vslideup_2xf32(a3, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a4 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a4 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a4 = __builtin_epi_vslideup_2xf32(a4, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a5 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a5 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a5 = __builtin_epi_vslideup_2xf32(a5, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a6 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a6 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a6 = __builtin_epi_vslideup_2xf32(a6, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a7 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a7 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a7 = __builtin_epi_vslideup_2xf32(a7, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a8 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a8 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a8 = __builtin_epi_vslideup_2xf32(a8, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a9 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a9 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a9 = __builtin_epi_vslideup_2xf32(a9, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a10 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a10 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a10 = __builtin_epi_vslideup_2xf32(a10, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a11 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a11 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a11 = __builtin_epi_vslideup_2xf32(a11, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a12 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a12 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration; it++)
+                                {
+                                        a12 = __builtin_epi_vslideup_2xf32(a12, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a13 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a13 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a13 = __builtin_epi_vslideup_2xf32(a13, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a14 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a14 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a14 = __builtin_epi_vslideup_2xf32(a14, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a15 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a15 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a15 = __builtin_epi_vslideup_2xf32(a15, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a16 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a16 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a16 = __builtin_epi_vslideup_2xf32(a16, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a17 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a17 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a17 = __builtin_epi_vslideup_2xf32(a17, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a18 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a18 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a18 = __builtin_epi_vslideup_2xf32(a18, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a19 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a19 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a19 = __builtin_epi_vslideup_2xf32(a19, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a20 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a20 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration; it++)
+                                {
+                                        a20 = __builtin_epi_vslideup_2xf32(a20, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a21 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a21 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a21 = __builtin_epi_vslideup_2xf32(a21, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a22 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a22 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a22 = __builtin_epi_vslideup_2xf32(a22, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a23 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a23 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a23 = __builtin_epi_vslideup_2xf32(a23, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a24 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a24 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a24 = __builtin_epi_vslideup_2xf32(a24, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a25 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a25 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a25 = __builtin_epi_vslideup_2xf32(a25, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a26 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a26 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a26 = __builtin_epi_vslideup_2xf32(a26, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a27 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a27 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a27 = __builtin_epi_vslideup_2xf32(a27, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a28 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a28 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a28 = __builtin_epi_vslideup_2xf32(a28, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a29 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a29 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a29 = __builtin_epi_vslideup_2xf32(a29, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a30 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a30 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a30 = __builtin_epi_vslideup_2xf32(a30, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
-                                const __epi_2xf32 a31 = __builtin_epi_vload_indexed_2xf32(a1_ptr, index11, gvl);
+                                __epi_2xf32 a31 = __builtin_epi_vload_2xf32(a1_ptr, gvl);
+                                for (int it = 0; it <= iteration ; it++)
+                                {
+                                        a31 = __builtin_epi_vslideup_2xf32(a31, 4*it, gvl);
+                                }
                                 a1_ptr += 4;
 
                                 const __epi_2xf32 b0 = __builtin_epi_vload_2xf32(b0_ptr, gvl);
@@ -929,11 +1270,226 @@ void nnp_s4gemm_upto_3x3__neon(
                 break;
         }
         default:
-                printf("not an option");
+                printf("not an option value of mr = %d\n", mr);
         }
 }
 
+
 void nnp_s4gemm_only_3x3__neon(
+    size_t k, size_t update,
+    const float a[restrict static 1],
+    const float b[restrict static 1],
+    float c[restrict static 1],
+    size_t row_stride_c)
+{
+        const int simd_width = __builtin_epi_vsetvlmax(__epi_e32, __epi_m1); // nnp_hwinfo.sve_simd_width;//nnp_hwinfo.simd_width;
+        int rem = __builtin_epi_vsetvlmax(__epi_e32, __epi_m1) / 4;
+        int vl = nnp_hwinfo.sxgemm.mr * 4;
+        int index_max = vl / 64;
+//        fprintf(stderr, "VL in tuple only = %d index = %d\n", vl, index_max);
+
+
+        /* tuple multiplication logic */
+        for (int i1 = 0; i1 < vl;)
+        {
+                unsigned long gvl = __builtin_epi_vsetvl(((long)vl - (long)i1), __epi_e32, __epi_m1);
+		int iteration = gvl/8;
+                for (int index = 0; index < index_max; index++)
+                {
+                   //     printf("going in\n");
+
+                        __epi_2xf32 acc00 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc10 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc20 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc30 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc40 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc50 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc60 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc70 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc80 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc90 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc100 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc110 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc120 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc130 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc140 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        __epi_2xf32 acc150 = __builtin_epi_vbroadcast_2xf32(0.0f, gvl);
+                        for (int j = 0; j < k; j++)
+                        {
+                                __epi_2xf32 b0 = __builtin_epi_vload_2xf32(&b[i1 + (j * vl)], gvl);
+                                __epi_2xf32 a0 = __builtin_epi_vload_2xf32(&a[(0 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a0 = __builtin_epi_vslideup_2xf32(a0, 4*it, gvl);
+                                  //      a0 = __builtin_epi_vslideup_2xf32(a0, 4, gvl);
+                                  //      a0 = __builtin_epi_vslideup_2xf32(a0, 8, gvl);
+                                    //    a0 = __builtin_epi_vslideup_2xf32(a0, 12, gvl);
+                                    //    a0 = __builtin_epi_vslideup_2xf32(a0, 16, gvl);
+                                    //    a0 = __builtin_epi_vslideup_2xf32(a0, 20, gvl);
+                                    //    a0 = __builtin_epi_vslideup_2xf32(a0, 24, gvl);
+                                    //    a0 = __builtin_epi_vslideup_2xf32(a0, 28, gvl);
+                                    //    a0 = __builtin_epi_vslideup_2xf32(a0, 32, gvl);
+                                }
+                                acc00 = __builtin_epi_vfmacc_2xf32(acc00, a0, b0, gvl);
+
+                                __epi_2xf32 a1 = __builtin_epi_vload_2xf32(&a[(4 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a1 = __builtin_epi_vslideup_2xf32(a1, 4*it, gvl);
+                                }
+                                acc10 = __builtin_epi_vfmacc_2xf32(acc10, a1, b0, gvl);
+
+                                __epi_2xf32 a2 = __builtin_epi_vload_2xf32(&a[(8 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a2 = __builtin_epi_vslideup_2xf32(a2, 4*it, gvl);
+                                }
+                                acc20 = __builtin_epi_vfmacc_2xf32(acc20, a2, b0, gvl);
+
+                                __epi_2xf32 a3 = __builtin_epi_vload_2xf32(&a[(12 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a3 = __builtin_epi_vslideup_2xf32(a3, 4*it, gvl);
+                                }
+                                acc30 = __builtin_epi_vfmacc_2xf32(acc30, a3, b0, gvl);
+
+                                __epi_2xf32 a4 = __builtin_epi_vload_2xf32(&a[(16 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a4 = __builtin_epi_vslideup_2xf32(a4, 4*it, gvl);
+                                }
+                                acc40 = __builtin_epi_vfmacc_2xf32(acc40, a4, b0, gvl);
+
+                                __epi_2xf32 a5 = __builtin_epi_vload_2xf32(&a[(20 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a5 = __builtin_epi_vslideup_2xf32(a5, 4*it, gvl);
+                                }
+                                acc50 = __builtin_epi_vfmacc_2xf32(acc50, a5, b0, gvl);
+
+                                __epi_2xf32 a6 = __builtin_epi_vload_2xf32(&a[(24 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a6 = __builtin_epi_vslideup_2xf32(a6, 4*it, gvl);
+                                }
+                                acc60 = __builtin_epi_vfmacc_2xf32(acc60, a6, b0, gvl);
+                                __epi_2xf32 a7 = __builtin_epi_vload_2xf32(&a[(28 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a7 = __builtin_epi_vslideup_2xf32(a7, 4*it, gvl);
+                                }
+                                acc70 = __builtin_epi_vfmacc_2xf32(acc70, a7, b0, gvl);
+
+                                __epi_2xf32 a8 = __builtin_epi_vload_2xf32(&a[(32 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a8 = __builtin_epi_vslideup_2xf32(a8, 4*it, gvl);
+                                }
+                                acc80 = __builtin_epi_vfmacc_2xf32(acc80, a8, b0, gvl);
+
+                                __epi_2xf32 a9 = __builtin_epi_vload_2xf32(&a[(36 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a9 = __builtin_epi_vslideup_2xf32(a9, 4*it, gvl);
+                                }
+                                acc90 = __builtin_epi_vfmacc_2xf32(acc90, a9, b0, gvl);
+                                __epi_2xf32 a10 = __builtin_epi_vload_2xf32(&a[(40 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a10 = __builtin_epi_vslideup_2xf32(a10, 4*it, gvl);
+                                }
+                                acc100 = __builtin_epi_vfmacc_2xf32(acc100, a10, b0, gvl);
+
+                                __epi_2xf32 a11 = __builtin_epi_vload_2xf32(&a[(44 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a11 = __builtin_epi_vslideup_2xf32(a11, 4*it, gvl);
+                                }
+                                acc110 = __builtin_epi_vfmacc_2xf32(acc110, a11, b0, gvl);
+
+                                __epi_2xf32 a12 = __builtin_epi_vload_2xf32(&a[(48 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a12 = __builtin_epi_vslideup_2xf32(a12, 4*it, gvl);
+                                }
+                                acc120 = __builtin_epi_vfmacc_2xf32(acc120, a12, b0, gvl);
+
+                                __epi_2xf32 a13 = __builtin_epi_vload_2xf32(&a[(52 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a13 = __builtin_epi_vslideup_2xf32(a13, 4*it, gvl);
+                                }
+                                acc130 = __builtin_epi_vfmacc_2xf32(acc130, a13, b0, gvl);
+
+                                __epi_2xf32 a14 = __builtin_epi_vload_2xf32(&a[(56 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2; it++)
+                                {
+                                        a14 = __builtin_epi_vslideup_2xf32(a14, 4*it, gvl);
+                                }
+                                acc140 = __builtin_epi_vfmacc_2xf32(acc140, a14, b0, gvl);
+
+                                __epi_2xf32 a15 = __builtin_epi_vload_2xf32(&a[(60 + (64 * index)) + (j * vl)], gvl);
+                                for (int it = 0; 4*it <= gvl/2 ; it++)
+                                {
+                                        a15 = __builtin_epi_vslideup_2xf32(a15, 4*it, gvl);
+                                }
+                                acc150 = __builtin_epi_vfmacc_2xf32(acc150, a15, b0, gvl);
+			//float buff[500];
+			//__builtin_epi_vstore_2xf32(&buff[0], a0, gvl);
+			//for(int i=0;i<gvl;i++)
+                	//printf("a0[%d] = %f value = %f\n", i, buff[i], a[(i + (64 * index)) + (j * vl)]);
+
+
+			//__builtin_epi_vstore_2xf32(&buff[0], a1, gvl);
+			//for(int i=4;i<8;i++)
+                	//printf("a1[%d] = %f values = %f\n", i, buff[i], a[(4 + (64 * index)) + (j * vl)]);
+                        }
+                        if (update != 0)
+                        {
+                                __builtin_epi_vstore_2xf32(&c[i1 + (16 * index * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index) * row_stride_c)], gvl), acc00, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 1) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 1) * row_stride_c)], gvl), acc10, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 2) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 2) * row_stride_c)], gvl), acc20, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 3) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 3) * row_stride_c)], gvl), acc30, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 4) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 4) * row_stride_c)], gvl), acc40, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 5) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 5) * row_stride_c)], gvl), acc50, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 6) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 6) * row_stride_c)], gvl), acc60, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 7) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 7) * row_stride_c)], gvl), acc70, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 8) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 8) * row_stride_c)], gvl), acc80, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 9) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 9) * row_stride_c)], gvl), acc90, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 10) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 10) * row_stride_c)], gvl), acc100, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 11) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 11) * row_stride_c)], gvl), acc110, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 12) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 12) * row_stride_c)], gvl), acc120, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 13) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 13) * row_stride_c)], gvl), acc130, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 14) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 14) * row_stride_c)], gvl), acc140, gvl), gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 15) * row_stride_c)], __builtin_epi_vfadd_2xf32(__builtin_epi_vload_2xf32(&c[i1 + ((16 * index + 15) * row_stride_c)], gvl), acc150, gvl), gvl);
+                        }
+                        else
+                        {
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index) * row_stride_c)], acc00, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 1) * row_stride_c)], acc10, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 2) * row_stride_c)], acc20, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 3) * row_stride_c)], acc30, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 4) * row_stride_c)], acc40, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 5) * row_stride_c)], acc50, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 6) * row_stride_c)], acc60, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 7) * row_stride_c)], acc70, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 8) * row_stride_c)], acc80, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 9) * row_stride_c)], acc90, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 10) * row_stride_c)], acc100, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 11) * row_stride_c)], acc110, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 12) * row_stride_c)], acc120, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 13) * row_stride_c)], acc130, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 14) * row_stride_c)], acc140, gvl);
+                                __builtin_epi_vstore_2xf32(&c[i1 + ((16 * index + 15) * row_stride_c)], acc150, gvl);
+                        }
+                }
+                i1 += gvl;
+        }
+}
+
+
+
+void nnp_s4gemm_only_3x3__neon1(
     size_t k, size_t update,
     const float a[restrict static 1],
     const float b[restrict static 1],
@@ -946,6 +1502,7 @@ void nnp_s4gemm_only_3x3__neon(
         int index1_host[simd_width];
         int rem = __builtin_epi_vsetvlmax(__epi_e32, __epi_m1) / 4;
         int vl = nnp_hwinfo.sxgemm.mr * 4;
+	printf("VL in tuple only = %d", vl);
         int index_max = vl / 64;
         for (int i1 = 0; i1 < vl;)
         {
@@ -2518,7 +3075,7 @@ void nnp_iwt8x8_3x3_with_offset__neon_intertile1(
                         //			}
                         for (size_t i = 0; i < 16; i++)
                         {
-#pragma loop unroll_count(interchannels)
+                                #pragma loop unroll_count(interchannels)
                                 for (int k = 0; k < interchannels; k++)
                                 {
                                         for (size_t j = 0; j < 4; j++)
@@ -2528,47 +3085,6 @@ void nnp_iwt8x8_3x3_with_offset__neon_intertile1(
                                         transform[k] += transform_stride;
                                 }
                         }
-
-                        /* for (size_t i = 0; i < 16; i++)
-                         {
-                                 for (size_t j = 0; j < 4; j++)
-                                 {
-                                 *(((float *)transform[0])+j)   = tmp_transform[i*simd_width+j];
-                                 *(((float *)transform[1])+j)   = tmp_transform[i*simd_width + (j+4)];
-                                 if(interchannels > 2) {*(((float *)transform[2])+j)   = tmp_transform[i*simd_width + (j+8)];}
-                                 if(interchannels > 3) {*(((float *)transform[3])+j)   = tmp_transform[i*simd_width + (j+12)];}
-                                 if(interchannels > 4) {*(((float *)transform[4])+j)   = tmp_transform[i*simd_width + (j+16)];}
-                                 if(interchannels > 5){*(((float *)transform[5])+j)   = tmp_transform[i*simd_width + (j+20)];}
-                                 if(interchannels > 6) {*(((float *)transform[6])+j)   = tmp_transform[i*simd_width + (j+24)];}
-                                 if(interchannels > 7) { *(((float *)transform[7])+j)   = tmp_transform[i*simd_width + (j+28)];}
-                                 if(interchannels > 8) {*(((float *)transform[8])+j)   = tmp_transform[i*simd_width + (j+32)];}
-                                 if(interchannels > 9) {*(((float *)transform[9])+j)   = tmp_transform[i*simd_width + (j+36)];}
-                                 if(interchannels > 10) {*(((float *)transform[10])+j)   = tmp_transform[i*simd_width + (j+40)];}
-                                 if(interchannels > 11){*(((float *)transform[11])+j)   = tmp_transform[i*simd_width + (j+44)];}
-                                 if(interchannels > 12) {*(((float *)transform[12])+j)   = tmp_transform[i*simd_width + (j+48)];}
-                                 if(interchannels > 13) { *(((float *)transform[13])+j)   = tmp_transform[i*simd_width + (j+52)];}
-                                 if(interchannels > 14) { *(((float *)transform[14])+j)   = tmp_transform[i*simd_width + (j+56)];}
-                                 if(interchannels > 15) { *(((float *)transform[15])+j)   = tmp_transform[i*simd_width + (j+60)];}
-
-                                 }
-                                 transform[0] += transform_stride;
-                                 transform[1] += transform_stride;
-                                 if(interchannels > 2) {transform[2] += transform_stride;}
-                                 if(interchannels > 3) {transform[3] += transform_stride;}
-                                  if(interchannels > 4) {transform[4] += transform_stride;}
-                                 if(interchannels > 5) {transform[5] += transform_stride;}
-                                 if(interchannels > 6) {transform[6] += transform_stride;}
-                                 if(interchannels > 7) {transform[7] += transform_stride;}
-                                  if(interchannels > 8) {transform[8] += transform_stride;}
-                                 if(interchannels > 9) {transform[9] += transform_stride;}
-                                  if(interchannels > 10) {transform[10] += transform_stride;}
-                                 if(interchannels > 11) {transform[11] += transform_stride;}
-                                 if(interchannels > 12) {transform[12] += transform_stride;}
-                                 if(interchannels > 13) {transform[13] += transform_stride;}
-                                 if(interchannels > 14) {transform[14] += transform_stride;}
-                                 if(interchannels > 15) {transform[15] += transform_stride;}
-
-                         }*/
                 }
                 i1 += gvl;
         }
@@ -2827,6 +3343,7 @@ void nnp_kwt8x8_3x3__neon_intertile(
     uint32_t row_offset,
     uint32_t column_offset, size_t interchannels)
 {
+
         int simd_width = interchannels * 4; // nnp_hwinfo.sve_simd_width;//16;//nnp_hwinfo.simd_width;
         //     int interchannels  = nnp_hwinfo.globalinterchannels;//4;
 
@@ -3957,8 +4474,6 @@ static void compute_input_transform(
                 const size_t column_count = min(input_size.width - input_x, input_tile.width - column_offset);
                 if (input_channels_block_size <= 3)
                 {
-                        // printf("transform stride = %f\n", (input_channels_block_size * tiles_count * tuple_size));
-                        // printf(" input channels start = %d, index =  %d\n",input_channels_block_offset,  ((tiles_subblock_start * input_channels_block_size + input_channels_block_offset * tiles_subblock_size + tiles_subblock_offset) * tuple_size));
                         nnp_iwt8x8_3x3_with_offset__neon(
                             &input[input_channel][input_y][input_x],
                             input_transform + (tiles_subblock_start * input_channels_block_size + input_channels_block_offset * tiles_subblock_size + tiles_subblock_offset) * tuple_size,
@@ -4054,9 +4569,6 @@ static void compute_output_transform(
                                 float *output_ptr[interchannels];
                                 void *output_transform_ptr[interchannels];
                                 const size_t output_channel = output_channels_subblock_start + output_channels_subblock_offset;
-                                //      const size_t output_channel1 = output_channels_subblock_start + (output_channels_subblock_offset+1);
-                                //      const size_t output_channel2 = output_channels_subblock_start + (output_channels_subblock_offset+2);
-                                //      const size_t output_channel3 = output_channels_subblock_start + (output_channels_subblock_offset+3);
                                 for (int k = 0; k < interchannels; k++)
                                 {
                                         output_ptr[k] = &output[output_channel + k][output_y][output_x];
@@ -4289,6 +4801,7 @@ static enum nnp_status compute_fast_convolution_inference(
                 void *output_transform = memory_block + input_transform_size;
                 void *kernel_transform = memory_block + input_transform_size + output_transform_size; // commented by sonia
 
+		//m5_checkpoint(0,0);
                 for (size_t input_channels_block_start = 0; input_channels_block_start < input_channels; input_channels_block_start += input_channels_block_max)
                 {
                         const size_t input_channels_block_size = min(input_channels - input_channels_block_start, input_channels_block_max);
@@ -4307,8 +4820,8 @@ static enum nnp_status compute_fast_convolution_inference(
                                     .kernel_size = kernel_size,
                                 };
                                 struct timeval starttime2, endtime2;
-                                fprintf(stderr, "I am in 2 before kernel transforms");
-                                // gettimeofday(&starttime2,NULL);
+                                //	fprintf(stderr, "I am in 2 before kernel transforms");
+                                 gettimeofday(&starttime2,NULL);
                                 kernel_parallelize_2d_tile_2d_intertile( // threadpool,
                                                                          //         (pthreadpool_task_2d_tile_2d_t1) compute_kernel_transform,
                                     &kernel_transform_context,
@@ -4318,7 +4831,8 @@ static enum nnp_status compute_fast_convolution_inference(
                                 //       NNP_KERNEL_TRANSFORM_END(profile)
                                 gettimeofday(&endtime2, NULL);
                                 double totaltime = ((endtime2.tv_sec + .000001 * endtime2.tv_usec) - (starttime2.tv_sec + .000001 * starttime2.tv_usec));
-                                // new changes for kernel reuse
+                                printf("kernel time = %f\n", totaltime);
+				// new changes for kernel reuse
                                 //      kernel = kernel_transform;
                         }
                         else
@@ -4332,7 +4846,7 @@ static enum nnp_status compute_fast_convolution_inference(
                         //				for(int i=0;i<10;i++)
                         //					printf("kernel transformation = %f", *(((float *)kernel_transform)+i));
                         //  NNP_INPUT_TRANSFORM_START(profile);
-                        fprintf(stderr, "I am in 2 after kernel transforms");
+                        //	fprintf(stderr, "I am in 2 after kernel transforms");
                         struct input_transform_context input_transform_context = {
                             .input = input,
                             .input_transform = input_transform,
@@ -4354,21 +4868,14 @@ static enum nnp_status compute_fast_convolution_inference(
                         //                                      input_channels_block_size, tiles_count,
                         //                                      1,                         tiles_subblock_max,
                         //                                      PTHREADPOOL_FLAG_DISABLE_DENORMALS);
-                        fprintf(stderr, "I am in before input transforms");
+                        // fprintf(stderr, "I am in before input transforms");
 
                         input_parallelize_2d_tile_2d_intertile( // threadpool,  //need o uncomet
-                            //(pthreadpool_task_2d_tile_2d_t1) compute_input_transform,
                             &input_transform_context,
                             input_channels_block_size, tiles_count, 1, tiles_subblock_max, nnp_hwinfo.globalinterchannels,
                             PTHREADPOOL_FLAG_DISABLE_DENORMALS);
-                        fprintf(stderr, "after input");
-                        //				printf("\n after input transformation\n");
-                        //				for(int i=0;i<10;i++)
-                        //					printf("input transformation = %f\t ", *(((float *)input_transform)+i));
-
-                        //    NNP_INPUT_TRANSFORM_END(profile)
-
-                        //      NNP_BLOCK_MULTIPLICATION_START(profile)
+			struct timeval starttimetuple, endtimetuple;
+                        gettimeofday(&starttimetuple, NULL);
                         for (size_t tuple_index = 0; tuple_index < tuple_count; tuple_index += 1)
                         {
                                 nnp_full_tuple_gemm_function full_gemm_function;
@@ -4396,18 +4903,25 @@ static enum nnp_status compute_fast_convolution_inference(
                                             .fast_gemm = fast_gemm_function,
                                             .full_gemm = full_gemm_function,
                                         };
+					//m5_checkpoint(0,0);
                                         tuple_parallelize_2d_tile_2d( // threadpool,  //tuple multiplication - fast gemm function
                                             //           (pthreadpool_task_2d_tile_2d_t) compute_tuple_multiplication,
                                             &tuple_multiplication_context,
                                             tiles_count, output_channels_block_size,
                                             tiles_block_max, output_channels_subblock_max,
                                             PTHREADPOOL_FLAG_DISABLE_DENORMALS);
+					//m5_dump_reset_stats(0,0);
                                         //				printf("\n after output transformationbefore output\n");
                                         //				for(int i=0;i<10;i++)
                                         //					printf("output transformation = %f %f %f \t ", *(((float *)tuple_multiplication_context.output_transform)+i), *(((float *)tuple_multiplication_context.input_transform)+i), *(((float *)tuple_multiplication_context.kernel_transform)+i));
-                                        fprintf(stderr, "after tuple");
+                                        //		fprintf(stderr,"after tuple");
                                 }
                         }
+			gettimeofday(&endtimetuple, NULL);
+                        double totaltimetuple = ((double)endtimetuple.tv_sec + (double)endtimetuple.tv_usec * .000001) - ((double)starttimetuple.tv_sec + (double)starttimetuple.tv_usec * .000001);
+
+                        printf("tuple= %f\n", totaltimetuple);
+
                         //        NNP_BLOCK_MULTIPLICATION_END(profile)
                 }
                 //  NNP_OUTPUT_TRANSFORM_START(profile)
@@ -4430,8 +4944,11 @@ static enum nnp_status compute_fast_convolution_inference(
                     output_channels, tiles_count,
                     output_channels_subblock_max, tiles_subblock_max,
                     PTHREADPOOL_FLAG_DISABLE_DENORMALS);
+		
+		
+		//m5_dump_reset_stats(0,0);
 
-                fprintf(stderr, "after output transform\n");
+                //		fprintf(stderr,"after output transform\n");
                 //  NNP_OUTPUT_TRANSFORM_END(profile);
                 //				printf("\n after output\n");
                 //				for(int i=0;i<10;i++)
@@ -4543,7 +5060,7 @@ enum nnp_status nnp_convolution_inference(
         {
                 output_transform_function = nnp_hwinfo.transforms.owt_f6x6_3x3s2_with_bias;
         }
-        status = compute_fast_convolution_inference(
+        compute_fast_convolution_inference(
             fourier_transform, transform_strategy, transform_element_size,
             input_channels, output_channels,
             tile_size, input_size, input_padding, kernel_size, output_size, output_subsampling,
@@ -4557,7 +5074,6 @@ void init_hwinfo(void)
         nnp_hwinfo.simd_width = 4; // original
         nnp_hwinfo.sve_simd_width = __builtin_epi_vsetvlmax(__epi_e32, __epi_m1);
         nnp_hwinfo.globalinterchannels = nnp_hwinfo.sve_simd_width / 4; // 16;
-        fprintf(stderr, "vector lebgth =%d", __builtin_epi_vsetvlmax(__epi_e32, __epi_m1));
         // nnp_hwinfo.transforms.iwt_f6x6_3x3_with_offset_and_store = (nnp_transform_2d_with_offset) nnp_iwt8x8_3x3_with_offset__neon;
         nnp_hwinfo.transforms.iwt_f6x6_3x3_with_offset_and_stream = (nnp_transform_2d_with_offset)nnp_iwt8x8_3x3_with_offset__neon;
         nnp_hwinfo.transforms.kwt_f6x6_3x3 = (nnp_transform_2d_with_offset)nnp_kwt8x8_3x3__neon;
